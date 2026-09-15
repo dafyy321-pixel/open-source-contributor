@@ -99,3 +99,9 @@ patch 示例（写为 UTF-8 JSON 文件，不能经过未转义的 shell 插值�
 ## 实际所需文件
 
 每个 case 至少有 record.json。按需要增加简短 assessment.md、证据快照、复现日志、PR 草稿或复盘；不要预建空目录/空报告。脚本负责稳定存储和取样，agent 负责判断、代码验证与可审核的交付。
+
+## 记录校验与发布前检查
+
+使用 `workflow.py validate` 检查阶段、checkout、检查结果和 outcome 是否自洽；校验失败时不得把记录状态当成事实。使用 `scripts/git_preflight.py <checkout>` 进行只读发布前检查，确认 HEAD、分支、工作区、remote fetch/push URL 和多个 push URL；有 warning 时必须先处理或明确记录，不能用裸 `git push`。
+
+`evidence`、`checks` 和 `authorization` 中的新条目使用稳定 `id`（如 `e-001`、`c-001`、`a-001`），候选、PR 和 outcome 通过 ID 引用，避免整体替换列表时丢失证据关系。授权条目至少包含 `action`、`target`、`scope`、`source`、`status`；读取授权不等于 push、评论或创建 PR 授权。

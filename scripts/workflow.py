@@ -17,6 +17,17 @@ PHASES = (
     "assessing", "awaiting_selection", "investigating", "awaiting_maintainer",
     "implementing", "ready_for_pr", "reviewing", "merged", "closed", "paused",
 )
+ALLOWED_TRANSITIONS = {
+    "assessing": {"assessing", "awaiting_selection", "investigating", "paused"},
+    "awaiting_selection": {"awaiting_selection", "investigating", "paused"},
+    "investigating": {"investigating", "awaiting_maintainer", "implementing", "ready_for_pr", "paused", "closed"},
+    "awaiting_maintainer": {"awaiting_maintainer", "investigating", "implementing", "closed", "paused"},
+    "implementing": {"implementing", "ready_for_pr", "awaiting_maintainer", "paused", "closed"},
+    "ready_for_pr": {"ready_for_pr", "reviewing", "implementing", "paused", "closed"},
+    "reviewing": {"reviewing", "implementing", "merged", "closed", "paused"},
+    "merged": {"merged", "paused"}, "closed": {"closed", "investigating", "paused"},
+    "paused": set(PHASES),
+}
 FIELDS = {
     "phase": str, "summary": str, "next_action": str, "blockers": list,
     "candidates": list, "selected_issue": str, "selected_pr": str,
@@ -27,6 +38,12 @@ FIELDS = {
 
 def now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+SECURITY_TERMS = re.compile(r"(任意代码执行|远程代码执行|权限提升|认证绕过|越权|数据泄露|供应链|命令注入|sql注入|xss|rce|cve|credential leak|arbitrary code)", re.I)
+
+def looks_security_sensitive(text):
+    """Conservative routing hint; it never proves a vulnerability."""
+    return bool(SECURITY_TERMS.search(text or ""))
 
 
 def parse_repo(value):
@@ -123,6 +140,35 @@ def read_record(directory, repo, case):
     return data
 
 
+def validate_record(data):
+    """Return human-readable consistency errors without changing the record."""
+    errors = []
+    phase = data.get("phase")
+    checkout = data.get("checkout") or {}
+    outcome = data.get("outcome") or {}
+    if phase not in PHASES:
+        errors.append("phase is unknown")
+    if phase == "merged" and not (data.get("selected_pr") and (outcome.get("merged_at") or outcome.get("merge_commit"))):
+        errors.append("merged requires selected_pr and outcome.merged_at or outcome.merge_commit")
+    if phase == "reviewing" and not ((data.get("selected_pr")) and ((data.get("review_cursor") or {}).get("head_sha"))):
+        errors.append("reviewing requires selected_pr and review_cursor.head_sha")
+    if phase == "ready_for_pr":
+        if not checkout.get("branch") or not checkout.get("commit"):
+            errors.append("ready_for_pr requires checkout.branch and checkout.commit")
+        if not data.get("checks"):
+            errors.append("ready_for_pr requires at least one check")
+    if phase in {"implementing", "ready_for_pr", "reviewing", "merged"} and not (checkout.get("branch") and checkout.get("commit")):
+        errors.append(f"{phase} requires checkout.branch and checkout.commit")
+    for field in ("evidence", "checks", "authorization"):
+        for index, item in enumerate(data.get(field) or []):
+            if isinstance(item, dict) and "id" not in item:
+                errors.append(f"{field}[{index}] is missing stable id")
+            if field == "authorization" and isinstance(item, dict):
+                missing = [key for key in ("action", "target", "scope", "source", "status") if not item.get(key)]
+                if missing: errors.append(f"authorization[{index}] missing: {', '.join(missing)}")
+    return errors
+
+
 def update(directory, repo, case, patch, expected_revision):
     if not isinstance(patch, dict) or not patch:
         raise ValueError("Patch must be a nonempty JSON object.")
@@ -138,6 +184,8 @@ def update(directory, repo, case, patch, expected_revision):
         data = read_record(directory, repo, case)
         if data["revision"] != expected_revision:
             raise ValueError("Revision changed; show the current record and reconcile before updating.")
+        if "phase" in patch and patch["phase"] not in ALLOWED_TRANSITIONS.get(data["phase"], set()):
+            raise ValueError(f"Invalid phase transition: {data['phase']} -> {patch['phase']}")
         data.update(patch)
         data["revision"] += 1
         data["updated_at"] = now()
@@ -151,7 +199,7 @@ def update(directory, repo, case, patch, expected_revision):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("init", "show", "update", "path"))
+    parser.add_argument("command", choices=("init", "show", "update", "validate", "path"))
     parser.add_argument("repo", help="owner/repo or https://github.com/owner/repo")
     parser.add_argument("--case", default="assessment", help="assessment, issue-123, pr-456, etc.")
     parser.add_argument("--root", type=Path, default=default_root(), help="Personal records root, outside upstream checkout")
@@ -167,6 +215,11 @@ def main(argv=None):
             data = initialize(directory, args.repo, args.case)
         elif args.command == "show":
             data = read_record(directory, args.repo, args.case)
+        elif args.command == "validate":
+            data = read_record(directory, args.repo, args.case)
+            errors = validate_record(data)
+            print(json.dumps({"record_path": str(directory / "record.json"), "valid": not errors, "errors": errors}, ensure_ascii=False, indent=2))
+            return 0 if not errors else 2
         else:
             if args.patch_file is None or args.expected_revision is None:
                 raise ValueError("update requires --patch-file and --expected-revision.")

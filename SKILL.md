@@ -20,8 +20,9 @@ description: "评估 GitHub 仓库是否适合开源贡献，调查贡献规则�
 ## 启动与路由
 
 1. 明确目标仓库、用户请求的阶段，以及现有 Issue/PR/分支。链接可能指向 fork、子目录或另一生态仓库；先核实实际归属，不能把 JS 仓库规则套到 Python 仓库。
-2. 如有历史工作记录，按 [工作记录与工具](references/records.md) 恢复，核对真实文件、Git 和远程状态。记录不是授权，也不是当前状态的证明。
-3. 只加载当前阶段所需文档：
+2. 先识别潜在安全漏洞线索；涉及安全症状时切换到私密披露路线，停止公开 Issue/PR 和可利用复现材料。
+3. 如有历史工作记录，按 [工作记录与工具](references/records.md) 恢复，核对真实文件、Git 和远程状态。记录不是授权，也不是当前状态的证明；恢复后运行记录校验。
+4. 只加载当前阶段所需文档：
 
 | 当前请求 | 阅读 | 本次交付 |
 |---|---|---|
@@ -31,6 +32,8 @@ description: "评估 GitHub 仓库是否适合开源贡献，调查贡献规则�
 | 贡献总结、下一次选题、履历素材 | [复盘与持续贡献](references/retrospective.md) | 有证据的复盘和下一步建议 |
 | 初始化或恢复记录、使用脚本 | [工作记录与工具](references/records.md) | 可恢复的本地记录和原始来源快照 |
 | 修改此 skill 后验证行为 | [验收场景](references/evaluations.md) | 工具测试和实际决策场景检查 |
+
+按需使用 `scripts/github_detail.py` 深入读取指定 Issue/PR 的评论、Review、关联提交和 checks；首轮 `github_snapshot.py` 仅用于有限取样。发布前使用 `scripts/git_preflight.py` 检查远程目标和工作区，使用 `workflow.py validate` 检查记录自洽。
 
 ## 每个阶段都要保持的判断
 

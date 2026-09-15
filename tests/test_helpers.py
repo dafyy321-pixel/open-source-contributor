@@ -16,6 +16,7 @@ from urllib.error import HTTPError, URLError
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import github_snapshot as snapshot
 import workflow
+import git_preflight
 
 
 class WorkflowTests(unittest.TestCase):
@@ -101,6 +102,45 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(workflow.main(["update", *args, "--patch-file", str(patch_path), "--expected-revision", "0"]), 0)
         with redirect_stderr(io.StringIO()):
             self.assertEqual(workflow.main(["update", *args, "--patch-file", str(patch_path)]), 2)
+
+    def test_validate_rejects_unsubstantiated_merged_record(self):
+        workflow.initialize(self.directory, "Example/Project", "issue-123")
+        workflow.update(self.directory, "Example/Project", "issue-123",
+                        {"phase": "investigating", "selected_pr": "https://github.com/a/b/pull/1"}, 0)
+        record = workflow.read_record(self.directory, "Example/Project", "issue-123")
+        record["phase"] = "merged"
+        self.assertTrue(any("merged requires" in e for e in workflow.validate_record(record)))
+
+    def test_invalid_phase_transition_is_rejected(self):
+        workflow.initialize(self.directory, "Example/Project", "issue-123")
+        with self.assertRaisesRegex(ValueError, "Invalid phase transition"):
+            workflow.update(self.directory, "Example/Project", "issue-123", {"phase": "merged"}, 0)
+
+    def test_validate_requires_stable_ids_for_structured_entries(self):
+        workflow.initialize(self.directory, "Example/Project", "issue-123")
+        record = workflow.read_record(self.directory, "Example/Project", "issue-123")
+        record["evidence"] = [{"claim": "x"}]
+        self.assertTrue(any("stable id" in e for e in workflow.validate_record(record)))
+
+    def test_security_routing_hint_is_conservative(self):
+        self.assertTrue(workflow.looks_security_sensitive("可能存在 RCE"))
+        self.assertFalse(workflow.looks_security_sensitive("普通文档拼写错误"))
+
+class PreflightTests(unittest.TestCase):
+    def test_preflight_detects_dirty_tree_and_multiple_push_targets(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root)
+            subprocess = __import__('subprocess')
+            subprocess.run(["git", "init"], cwd=path, capture_output=True, check=True)
+            (path / "x.txt").write_text("x")
+            subprocess.run(["git", "add", "x.txt"], cwd=path, capture_output=True, check=True)
+            subprocess.run(["git", "-c", "user.email=a@b", "-c", "user.name=t", "commit", "-m", "init"], cwd=path, capture_output=True, check=True)
+            subprocess.run(["git", "remote", "add", "origin", "https://github.com/u/fork.git"], cwd=path, capture_output=True, check=True)
+            subprocess.run(["git", "remote", "set-url", "--add", "--push", "origin", "https://github.com/other/repo.git"], cwd=path, capture_output=True, check=True)
+            (path / "x.txt").write_text("dirty")
+            result = git_preflight.collect(path)
+            self.assertFalse(result["safe_to_push"])
+            self.assertTrue(any("working tree" in warning for warning in result["warnings"]))
 
 
 class FakeResponse:
