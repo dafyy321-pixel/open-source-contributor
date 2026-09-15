@@ -57,7 +57,7 @@ patch 示例（写为 UTF-8 JSON 文件，不能经过未转义的 shell 插值�
 | profile | 已知目标、经验、环境/时间/费用偏好；未知项明确标注 |
 | candidates | 候选 ID、问题、来源、证据等级、查重时间、成本/价值/未知项 |
 | selected_issue / selected_pr | 核实后的完整 URL，没有则空字符串 |
-| checkout | 本地绝对路径、branch、commit、origin、upstream；不要保存凭证 URL |
+| checkout | 本地绝对路径、branch、commit、origin、upstream；补充 fork_repo、base_repo、base_branch、base_commit、source_remote、push_remote、push_branch、pushed_commit（如已推送），区分实际远程名与用途；不要保存凭证 URL |
 | authorization | 动作、目标、范围、用户授权出处；只是记录，恢复时仍核对当前请求 |
 | evidence | 来源、检查时间、commit/版本、事实、局限、原始输出位置 |
 | checks | 命令、工作目录、commit、时间、退出码、失败分类、日志位置 |
