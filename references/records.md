@@ -4,6 +4,8 @@
 
 优先使用实际可用的 GitHub 连接、已认证 gh 或官方 API 读取结构化数据；公开页面和跨平台资料使用可用的搜索/浏览器工具。工具名称与权限由当前宿主提供，skill 不假定必须安装某 MCP、其他 skill 或特定搜索服务。
 
+来源表中的平台名称不代表已有接入能力。按实际可用的连接、API、搜索或浏览器访问；可使用已有获授权的会话，登录由本人完成，不为调查自动加入群组或发言。遇到登录墙、权限限制或内容不可读时，保留已取得的线索并尝试合法可访问的原始链接或其他来源，不绕过访问限制，也不把摘要冒充全文。
+
 | 条件 | 做法 |
 |---|---|
 | 有 GitHub 连接或 gh | 按工具描述进行只读查询；关键投稿仍需实际授权 |
@@ -55,11 +57,11 @@ patch 示例（写为 UTF-8 JSON 文件，不能经过未转义的 shell 插值�
 | schema_version / repo / case / revision / timestamps / history | 工具维护；不可通过 patch 改身份或历史 |
 | phase / summary / next_action / blockers | 当前实际阶段、完成事项、下一步、具体阻碍 |
 | profile | 已知目标、经验、环境/时间/费用偏好；未知项明确标注 |
-| candidates | 候选 ID、问题、来源、证据等级、查重时间、成本/价值/未知项 |
+| candidates | 内部候选池：候选 ID、问题、来源、证据等级、查重时间、成本/价值/未知项；可补充 recommended、recommendation_reason 和淘汰理由。池内数量不受 5 个限制，最终推荐最多 5 个且每个有理由；恢复时保留稳定 ID 以对应用户选择 |
 | selected_issue / selected_pr | 核实后的完整 URL，没有则空字符串 |
 | checkout | 本地绝对路径、branch、commit、origin、upstream；补充 fork_repo、base_repo、base_branch、base_commit、source_remote、push_remote、push_branch、pushed_commit（如已推送），区分实际远程名与用途；不要保存凭证 URL |
 | authorization | 动作、目标、范围、用户授权出处；只是记录，恢复时仍核对当前请求 |
-| evidence | 来源、检查时间、commit/版本、事实、局限、原始输出位置 |
+| evidence | 来源、检查时间、commit/版本、事实、局限、原始输出位置；跨平台材料按需记录发布时间、内容可见范围、原始报告 URL、转载/关联关系和对应候选 ID |
 | checks | 命令、工作目录、commit、时间、退出码、失败分类、日志位置 |
 | review_cursor | PR head SHA、最后检查时间/事件 ID、已处理反馈；不是持续运行证明 |
 | artifacts | 本地报告、草稿、截图等路径及用途 |
@@ -72,6 +74,12 @@ patch 示例（写为 UTF-8 JSON 文件，不能经过未转义的 shell 插值�
 
 恢复时先读记录，再确认 checkout、未提交修改、分支/commit、远程 Issue/PR、必要规则是否变化。存在运行中记录但无真实进程/调度句柄时，按已停止工作处理，不声称仍在执行。
 
+## 跨平台调查记录
+
+在现有 `evidence` 中用 `kind: "search"` 保存必要的检索记录，或在 assessment.md 中保存渠道覆盖表并加入 `artifacts`；无需新增顶层 schema 或为每个平台预建文件。记录平台/入口、查询词与语言、检查时间、选择原因、访问与结果状态，以及关联候选或证据位置。
+
+状态区分：找到线索、已查无相关结果、访问失败、仅摘要可见、本次未覆盖；未覆盖项只记录与本次调查有关的渠道及原因，不穷举所有平台。报告的事实证据另存原始链接和实际可见内容；转载链接可以保留，但不能当成独立报告重复计数。没有外部检索能力时明确交付受限范围，不能用 GitHub 快照代替跨平台调查。
+
 ## GitHub 首轮快照
 
 ```powershell
@@ -80,6 +88,7 @@ patch 示例（写为 UTF-8 JSON 文件，不能经过未转义的 shell 插值�
 
 - 仅向 `https://api.github.com` 发 GET；只使用已有 GH_TOKEN/GITHUB_TOKEN 环境变量（如有），不读取或打印凭证文件。不自动跟随跳转；仓库迁移需核实 canonical URL 后重新调用。
 - 默认最多 18 次请求，每列表 5 条、第一分页；可调整 `--sample 1..10`、`--requests 1..30`、`--timeout`、`--seconds`。总时间是软预算，网络流式读取可能超过；不要承诺精确完成时间。
+- 这些参数仅限制本次 GitHub 快照取样，与最终最多 5 个推荐候选无关；不限制 agent 按证据需要另行调查的来源和线索。
 - 读取元数据、默认分支 commit、根目录/.github/docs、最多 5 个优先文档、近期 open Issues/open PRs/closed PRs、最多 2 个 closed PR 详情。文档尽可能固定 commit，并记录截断。
 - Issues REST 列表混入的 PR 会剔除，输出 `pr_rows_excluded`；因此剩余条目可能少于 sample，这不是无 Issue 的证明。
 - PR 列表可能不返回 merged_at。缺字段保留为未知，`merge_status: unknown` 不能当作未合并；要查看 PR 详情，null 和缺字段含义不同。
