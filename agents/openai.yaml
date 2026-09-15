@@ -1,0 +1,4 @@
+interface:
+  display_name: "开源贡献助手"
+  short_description: "评估 GitHub 仓库、筛选真实贡献机会，推进修复、验证、PR 跟进与复盘"
+  default_prompt: "使用 $open-source-contributor 分析这个 GitHub 仓库，核实贡献规则并推荐适合我的具体贡献机会。"
