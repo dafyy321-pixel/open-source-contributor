@@ -76,6 +76,10 @@ patch 示例（写为 UTF-8 JSON 文件，不能经过未转义的 shell 插值�
 
 ## 跨平台调查记录
 
+在 `profile` 中记录用户选择的 `contribution_route`（A、B、A+B）及请求来源，不设默认 B。B 的官方规则、分工、实际 subagent 标识、发现与淘汰理由保存为 evidence 或 artifacts，由主 agent 合并共享 case。
+
+候选按需补充 `availability`、`availability_checked_at`、`availability_evidence_ids`、相关 Issue/PR、覆盖/发布版本、下一步及淘汰原因；证据保存检查范围、缺页和失败。历史记录不代替开工前刷新。新 Bug 尚无 Issue 时使用 bug case，发布后填真实 URL；等待维护者时保存具体待确认事项。
+
 在现有 `evidence` 中用 `kind: "search"` 保存必要的检索记录，或在 assessment.md 中保存渠道覆盖表并加入 `artifacts`；无需新增顶层 schema 或为每个平台预建文件。记录平台/入口、查询词与语言、检查时间、选择原因、访问与结果状态，以及关联候选或证据位置。
 
 状态区分：找到线索、已查无相关结果、访问失败、仅摘要可见、本次未覆盖；未覆盖项只记录与本次调查有关的渠道及原因，不穷举所有平台。报告的事实证据另存原始链接和实际可见内容；转载链接可以保留，但不能当成独立报告重复计数。没有外部检索能力时明确交付受限范围，不能用 GitHub 快照代替跨平台调查。
@@ -101,6 +105,8 @@ patch 示例（写为 UTF-8 JSON 文件，不能经过未转义的 shell 插值�
 每个 case 至少有 record.json。按需要增加简短 assessment.md、证据快照、复现日志、PR 草稿或复盘；不要预建空目录/空报告。脚本负责稳定存储和取样，agent 负责判断、代码验证与可审核的交付。
 
 ## 记录校验与发布前检查
+
+`github_detail.py` 使用 Issue 接口读取普通评论和 timeline，PR 接口读取 Review、行内评论和提交，各列表有界分页。`--pages` 控制每列表页数，`--requests` 和 `--seconds` 控制总预算；缺页/失败保留部分材料。`complete` 仅表示本次请求范围读完，仍需检查 `scope` 未覆盖项，不证明全仓查重或无人处理。搜索截断或 `incomplete_results` 表示不完整，应按线索补查其他关键词和关联 PR。
 
 使用 `workflow.py validate` 检查阶段、checkout、检查结果和 outcome 是否自洽；校验失败时不得把记录状态当成事实。使用 `scripts/git_preflight.py <checkout>` 进行只读发布前检查，确认 HEAD、分支、工作区、remote fetch/push URL 和多个 push URL；有 warning 时必须先处理或明确记录，不能用裸 `git push`。
 
